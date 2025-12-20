@@ -20,6 +20,7 @@ terraform.rc
 
 .env
 .env.*
+devops-microservices-key.pem
 
 .DS_Store
 Thumbs.db

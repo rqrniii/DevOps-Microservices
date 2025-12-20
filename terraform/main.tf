@@ -19,3 +19,16 @@ module "vpc" {
   az                 = "me-south-1a"
   name               = "k8s-vpc"
 }
+
+module "ec2" {
+  source = "./modules/ec2"
+
+  name       = "devops-microservices"
+  ami_id     = var.ami_id
+  key_name   = var.key_name
+  subnet_id  = module.vpc.public_subnet_id
+  vpc_id     = module.vpc.vpc_id
+
+  master_count = 1
+  worker_count = 2
+}
