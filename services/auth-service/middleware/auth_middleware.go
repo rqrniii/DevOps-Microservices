@@ -5,48 +5,37 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	jwtlib "github.com/golang-jwt/jwt/v5"
-	myjwt "github.com/rqrniii/DevOps-Microservices/services/common/jwt"
 )
 
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
+
 		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "missing token"})
-			c.Abort()
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "missing authorization header",
+			})
 			return
 		}
 
 		parts := strings.Split(authHeader, " ")
 		if len(parts) != 2 || parts[0] != "Bearer" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token format"})
-			c.Abort()
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "invalid authorization format",
+			})
 			return
 		}
 
-		token, err := myjwt.ValidateToken(parts[1]) // use wrapper
-		if err != nil || !token.Valid {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
-			c.Abort()
+		token := parts[1]
+
+		// TODO: Validate JWT properly later
+		if token == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "invalid token",
+			})
 			return
 		}
 
-		claims, ok := token.Claims.(jwtlib.MapClaims) // use jwtlib for type
-		if !ok {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token claims"})
-			c.Abort()
-			return
-		}
-
-		email, ok := claims["email"].(string)
-		if !ok {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token email"})
-			c.Abort()
-			return
-		}
-
-		c.Set("userEmail", email)
 		c.Next()
 	}
 }

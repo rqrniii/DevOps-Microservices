@@ -6,18 +6,11 @@ import (
 	"github.com/rqrniii/DevOps-Microservices/services/todo-service/middleware"
 )
 
-func SetupRoutes(router *gin.Engine) {
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
-	})
-
-	todoGroup := router.Group("/todos")
-	todoGroup.Use(middleware.AuthMiddleware())
+func RegisterTodoRoutes(r *gin.Engine) {
+	todos := r.Group("/todos")
+	todos.Use(middleware.AuthMiddleware())
 	{
-		todoGroup.POST("/", controllers.CreateTodo)
-		todoGroup.GET("/", controllers.ListTodos)
-		todoGroup.GET("/:id", controllers.GetTodo)
-		todoGroup.PUT("/:id", controllers.UpdateTodo)
-		todoGroup.DELETE("/:id", controllers.DeleteTodo)
+		todos.GET("", controllers.GetTodos)
+		todos.POST("", controllers.AddTodo)
 	}
 }

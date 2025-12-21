@@ -1,31 +1,75 @@
 package main
 
 import (
-	"log"
-	"os"
+	"net/http"
+	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
-	"github.com/rqrniii/DevOps-Microservices/services/todo-service/routes"
+	"github.com/rqrniii/DevOps-Microservices/services/todo-service/middleware"
 )
 
+type Todo struct {
+	ID    int    `json:"id"`
+	Task  string `json:"task"`
+	Email string `json:"email"`
+}
+
+var todos = []Todo{}
+
+func getTodos(c *gin.Context) {
+	userEmail := c.GetString("email")
+	userTodos := []Todo{}
+
+	for _, t := range todos {
+		if t.Email == userEmail {
+			userTodos = append(userTodos, t)
+		}
+	}
+
+	c.JSON(http.StatusOK, userTodos)
+}
+
+func createTodo(c *gin.Context) {
+	var input struct {
+		Task string `json:"task"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userEmail := c.GetString("email")
+
+	todo := Todo{
+		ID:    len(todos) + 1,
+		Task:  input.Task,
+		Email: userEmail,
+	}
+
+	todos = append(todos, todo)
+	c.JSON(http.StatusCreated, todo)
+}
+
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Println("No .env file found, using environment variables")
+	r := gin.Default()
+
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
+
+	todoRoutes := r.Group("/todos")
+	todoRoutes.Use(middleware.JWTAuth())
+	{
+		todoRoutes.GET("", getTodos)
+		todoRoutes.POST("", createTodo)
 	}
 
-	router := gin.Default()
-	router.SetTrustedProxies([]string{"10.0.0.0/8"})
-	routes.SetupRoutes(router)
-
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8081"
-	}
-
-	log.Printf("Todo service listening on port %s", port)
-	log.Println("JWT_SECRET:", os.Getenv("JWT_SECRET"))
-	log.Printf("JWT_SECRET length: %d", len(os.Getenv("JWT_SECRET")))
-	router.Run(":" + port)
+	r.Run(":8081")
 }
