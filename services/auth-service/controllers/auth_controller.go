@@ -4,55 +4,74 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/rqrniii/DevOps-Microservices/services/auth-service/utils"
+	"github.com/rqrniii/DevOps-Microservices/services/auth-service/models"
+	myjwt "github.com/rqrniii/DevOps-Microservices/services/common/jwt"
+	"golang.org/x/crypto/bcrypt"
 )
 
-type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
+// In-memory user store
+var users = map[string]models.User{}
 
-func Login(c *gin.Context) {
-	var req LoginRequest
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
-		return
-	}
-
-	token, err := utils.GenerateToken(req.Email)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not generate token"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"token": token,
-	})
-}
-
-func Me(c *gin.Context) {
-	email, _ := c.Get("email")
-	c.JSON(http.StatusOK, gin.H{
-		"email": email,
-	})
-}
-
-type RegisterRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
+// Register endpoint
 func Register(c *gin.Context) {
-	var req RegisterRequest
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+	var input models.User
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// ⚠️ TEMP: no DB yet
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "user registered",
-	})
+	// Hash password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+		return
+	}
+
+	input.Password = string(hashedPassword)
+
+	// Save to in-memory map (replace with DB later)
+	users[input.Email] = input
+
+	c.JSON(http.StatusOK, gin.H{"message": "user registered"})
+}
+
+// Login endpoint
+func Login(c *gin.Context) {
+	var input models.User
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	user, exists := users[input.Email]
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+		return
+	}
+
+	// Compare password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+		return
+	}
+
+	// Generate JWT using shared common/jwt
+	token, err := myjwt.GenerateToken(user.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"token": token})
+}
+
+// Me endpoint (protected)
+func Me(c *gin.Context) {
+	userEmail, exists := c.Get("userEmail")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"email": userEmail})
 }
