@@ -106,11 +106,11 @@ echo ""
 echo -e "${YELLOW}Step 5: Building Frontend (AMD64)${NC}"
 echo "-----------------------------------"
 docker buildx build --platform linux/amd64 \
-    -f frontend/Dockerfile \
+    -f frontend/todo-frontend/Dockerfile \
     -t $ECR_REGISTRY/frontend:$VERSION_TAG \
     -t $ECR_REGISTRY/frontend:latest \
     --push \
-    ./frontend
+    ./frontend/todo-frontend
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✅ Frontend built and pushed${NC}"

@@ -13,6 +13,8 @@ spec:
       labels:
         app: ai-service
     spec:
+      imagePullSecrets:
+      - name: ecr-secret
       containers:
       - name: ai-service
         image: 405894839882.dkr.ecr.me-south-1.amazonaws.com/ai-service:latest
