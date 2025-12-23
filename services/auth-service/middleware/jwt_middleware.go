@@ -24,14 +24,13 @@ func JWTAuth() gin.HandlerFunc {
 			return
 		}
 
-		claims, err := jwt.ValidateToken(tokenString)
+		email, err := jwt.ValidateToken(tokenString)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
 			c.Abort()
 			return
 		}
-
-		c.Set("email", claims["email"])
+		c.Set("email", email)
 		c.Next()
 	}
 }

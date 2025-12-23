@@ -15,14 +15,39 @@ func GenerateToken(email string) (string, error) {
 		"email": email,
 		"exp":   time.Now().Add(24 * time.Hour).Unix(),
 	}
-
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(jwtKey)
 }
 
-func ValidateToken(tokenString string) (jwt.MapClaims, error) {
+// ValidateToken validates JWT and returns the email
+func ValidateToken(tokenString string) (string, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, jwt.ErrSignatureInvalid
+		}
+		return jwtKey, nil
+	})
 
+	if err != nil || !token.Valid {
+		return "", errors.New("invalid or expired token")
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return "", errors.New("cannot parse claims")
+	}
+
+	// ✅ Extract email from claims
+	email, ok := claims["email"].(string)
+	if !ok {
+		return "", errors.New("email not found in token")
+	}
+
+	return email, nil
+}
+
+func ValidateTokenWithClaims(tokenString string) (jwt.MapClaims, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, jwt.ErrSignatureInvalid
 		}

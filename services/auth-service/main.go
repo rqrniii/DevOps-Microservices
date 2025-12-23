@@ -31,6 +31,10 @@ func main() {
 
 	routes.SetupRoutes(router)
 
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "healthy", "service": "auth"})
+	})
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
