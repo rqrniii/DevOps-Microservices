@@ -3,8 +3,6 @@ kind: Deployment
 metadata:
   name: ai-service
   namespace: taskgenius
-  labels:
-    app: ai-service
 spec:
   replicas: 2
   selector:
@@ -18,10 +16,8 @@ spec:
       containers:
       - name: ai-service
         image: 405894839882.dkr.ecr.me-south-1.amazonaws.com/ai-service:latest
-        imagePullPolicy: Always
         ports:
         - containerPort: 8082
-          name: http
         env:
         - name: PORT
           valueFrom:

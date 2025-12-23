@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const todoApi = axios.create({
-  baseURL: "http://localhost:8081",
+  baseURL: import.meta.env.VITE_TODO_API || "http://localhost:8081",
 });
 
 export default todoApi;
