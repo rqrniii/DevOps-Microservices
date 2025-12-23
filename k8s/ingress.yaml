@@ -4,27 +4,22 @@ metadata:
   name: taskgenius-ingress
   namespace: taskgenius
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/cors-allow-origin: "*"
     nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
     nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization"
     nginx.ingress.kubernetes.io/enable-cors: "true"
 spec:
   ingressClassName: nginx
+  tls:
+  - hosts:
+    - task-genius.app
+    - www.task-genius.app
+    secretName: porkbun-tls-secret
   rules:
-  - host: taskgenius.local  # Change this to your domain or use IP
+  - host: task-genius.app
     http:
       paths:
-      # Frontend - Root path
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: frontend-service
-            port:
-              number: 80
-      
       # Auth Service - /api/auth/*
       - path: /api/auth
         pathType: Prefix
@@ -51,27 +46,44 @@ spec:
             name: ai-service
             port:
               number: 8082
-
----
-# Optional: LoadBalancer service for external access
-apiVersion: v1
-kind: Service
-metadata:
-  name: taskgenius-loadbalancer
-  namespace: taskgenius
-  annotations:
-    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
-spec:
-  type: LoadBalancer
-  ports:
-  - port: 80
-    targetPort: 80
-    protocol: TCP
-    name: http
-  - port: 443
-    targetPort: 443
-    protocol: TCP
-    name: https
-  selector:
-    app.kubernetes.io/name: ingress-nginx
-    app.kubernetes.io/component: controller
+      
+      # Frontend
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend-service
+            port:
+              number: 80
+  
+  - host: www.task-genius.app
+    http:
+      paths:
+      - path: /api/auth
+        pathType: Prefix
+        backend:
+          service:
+            name: auth-service
+            port:
+              number: 8080
+      - path: /api/todos
+        pathType: Prefix
+        backend:
+          service:
+            name: todo-service
+            port:
+              number: 8081
+      - path: /api/ai
+        pathType: Prefix
+        backend:
+          service:
+            name: ai-service
+            port:
+              number: 8082
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend-service
+            port:
+              number: 80
