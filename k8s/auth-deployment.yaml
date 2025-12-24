@@ -21,6 +21,11 @@ spec:
         ports:
         - containerPort: 8080
         env:
+         - name: ALLOWED_ORIGINS
+          valueFrom:
+            configMapKeyRef:
+              name: taskgenius-config
+              key: ALLOWED_ORIGINS
         - name: PORT
           valueFrom:
             configMapKeyRef:
