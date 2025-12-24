@@ -5,8 +5,10 @@ COPY package.json bun.lockb* ./
 RUN bun install --no-save
 
 COPY . .
+COPY .env.production ./
 
 # Build the app
+ENV NODE_ENV=production
 RUN bun run build
 
 FROM nginx:alpine
