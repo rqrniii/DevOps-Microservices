@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import api from "../api/axios";
+import { login as loginUser } from "../api/auth";  // Changed
 import { useAuth } from "../context/AuthContext";
 import { Mail, Lock, LogIn, Sparkles, AlertCircle } from "lucide-react";
 
@@ -18,7 +18,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const res = await api.post("/auth/login", { email, password });
+      const res = await loginUser(email, password);  // Changed
       login(res.data.token);
       navigate("/");
     } catch (err: any) {

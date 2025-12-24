@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import api from "../api/axios";
+import { register as registerUser } from "../api/auth";  // Changed
 import { Mail, Lock, UserPlus, Sparkles, AlertCircle } from "lucide-react";
 
 export default function Register() {
@@ -16,7 +16,7 @@ export default function Register() {
     setLoading(true);
 
     try {
-      await api.post("/auth/register", { email, password });
+      await registerUser(email, password);  // Changed
       navigate("/login");
     } catch (err: any) {
       setError(err.response?.data?.error || "Registration failed");
