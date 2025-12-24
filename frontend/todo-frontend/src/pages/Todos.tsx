@@ -66,7 +66,7 @@ export default function Todos() {
       const aiBaseUrl = import.meta.env.VITE_AI_API || "http://localhost:8082";
       // Call AI service to get suggestions
       const token = localStorage.getItem("token") || "";
-      const response = await fetch(`${aiBaseUrl}/ai/generate`, {
+      const response = await fetch(`${aiBaseUrl}/generate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

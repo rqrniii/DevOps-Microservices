@@ -5,7 +5,7 @@ import axios from "axios";
 const getToken = () => localStorage.getItem("token") || "";
 
 export const getTodos = () => {
-  return todoApi.get("/todos", {
+  return todoApi.get("", {
     headers: {
       Authorization: `Bearer ${getToken()}`,
     },
@@ -14,7 +14,7 @@ export const getTodos = () => {
 
 export const addTodo = (task: string) => {
   return todoApi.post(
-    "/todos",
+    "",
     { task },
     {
       headers: {
@@ -26,7 +26,7 @@ export const addTodo = (task: string) => {
 
 export const toggleTodo = (id: number) => {
   return todoApi.put(
-    `/todos/${id}/toggle`,
+    `/${id}/toggle`,
     {},
     {
       headers: {
@@ -42,7 +42,7 @@ export const addAITasks = async (prompt: string): Promise<void> => {
   const aiBaseUrl = import.meta.env.VITE_AI_API || "http://localhost:8082";
   // 1️⃣ Call AI service
   const aiResponse = await axios.post(
-    `${aiBaseUrl}/ai/generate`,
+    `${aiBaseUrl}/generate`,
     { prompt },
     { headers: { Authorization: `Bearer ${token}` } }
   );
@@ -53,14 +53,14 @@ export const addAITasks = async (prompt: string): Promise<void> => {
 
   // 2️⃣ Send to backend
   await todoApi.post(
-    "/todos/ai",
+    "/ai",
     { tasks },
     { headers: { Authorization: `Bearer ${token}` } }
   );
 };
 
 export const deleteTodo = (id: number) => {
-  return todoApi.delete(`/todos/${id}`, {
+  return todoApi.delete(`/${id}`, {
     headers: {
       Authorization: `Bearer ${getToken()}`,
     },

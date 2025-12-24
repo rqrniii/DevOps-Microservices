@@ -10,7 +10,7 @@ data:
   AI_PORT: "8082"
   
   # Database Configuration (internal K8s DNS)
-  DB_HOST: "postgres-service"
+  DB_HOST: "postgres-0.postgres-service"
   DB_PORT: "5432"
   DB_NAME: "todoapp"
   
@@ -18,7 +18,7 @@ data:
   AUTH_SERVICE_URL: "http://auth-service:8080"
   TODO_SERVICE_URL: "http://todo-service:8081"
   AI_SERVICE_URL: "http://ai-service:8082"
-  
+
 ---
 apiVersion: v1
 kind: ConfigMap
