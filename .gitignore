@@ -21,8 +21,12 @@ terraform.rc
 node_modules
 dist
 .env
-.env.*
+.env.local
+.env.development
+!.env.production
+
 devops-microservices-key.pem
+build-and-push.sh
 
 .DS_Store
 Thumbs.db
@@ -31,3 +35,5 @@ Thumbs.db
 .idea/
 
 *.logk8s/secrets.yaml
+k8s/secrets.yaml
+*.pem
