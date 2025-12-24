@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -15,12 +16,11 @@ type Todo struct {
 	ID        int    `json:"id"`
 	Task      string `json:"task"`
 	Email     string `json:"email"`
-	Completed bool   `json:"completed"` // ✅ ADDED
+	Completed bool   `json:"completed"`
 }
 
 var todos = []Todo{}
 
-// Existing endpoints
 func getTodos(c *gin.Context) {
 	userEmail := c.GetString("email")
 	userTodos := []Todo{}
@@ -50,18 +50,16 @@ func createTodo(c *gin.Context) {
 		ID:        len(todos) + 1,
 		Task:      input.Task,
 		Email:     userEmail,
-		Completed: false, // ✅ ADDED - new todos start as incomplete
+		Completed: false,
 	}
 
 	todos = append(todos, todo)
 	c.JSON(http.StatusCreated, todo)
 }
 
-// ✅ NEW FUNCTION - Toggle Todo Completion
 func toggleTodo(c *gin.Context) {
 	idParam := c.Param("id")
 
-	// convert id to int
 	id := 0
 	_, err := fmt.Sscanf(idParam, "%d", &id)
 	if err != nil {
@@ -71,7 +69,6 @@ func toggleTodo(c *gin.Context) {
 
 	userEmail := c.GetString("email")
 
-	// Find and toggle the todo
 	for i, t := range todos {
 		if t.ID == id && t.Email == userEmail {
 			todos[i].Completed = !todos[i].Completed
@@ -86,7 +83,6 @@ func toggleTodo(c *gin.Context) {
 func deleteTodo(c *gin.Context) {
 	idParam := c.Param("id")
 
-	// convert id to int
 	id := 0
 	_, err := fmt.Sscanf(idParam, "%d", &id)
 	if err != nil {
@@ -98,7 +94,6 @@ func deleteTodo(c *gin.Context) {
 
 	for i, t := range todos {
 		if t.ID == id && t.Email == userEmail {
-			// remove item from slice
 			todos = append(todos[:i], todos[i+1:]...)
 			c.JSON(http.StatusOK, gin.H{"message": "todo deleted"})
 			return
@@ -120,10 +115,6 @@ func createAITasks(c *gin.Context) {
 
 	userEmail := c.GetString("email")
 
-	// DELETE previous AI tasks - REMOVED per best practices
-	// Now AI tasks are treated like regular tasks
-
-	// ADD new AI tasks
 	for _, task := range req.Tasks {
 		task = strings.TrimSpace(task)
 		if task == "" {
@@ -132,9 +123,9 @@ func createAITasks(c *gin.Context) {
 
 		todo := Todo{
 			ID:        len(todos) + 1,
-			Task:      task, // ✅ REMOVED "AI: " prefix per best practices
+			Task:      task,
 			Email:     userEmail,
-			Completed: false, // ✅ ADDED
+			Completed: false,
 		}
 		todos = append(todos, todo)
 	}
@@ -145,8 +136,20 @@ func createAITasks(c *gin.Context) {
 func main() {
 	r := gin.Default()
 
+	// ✅ FIXED: Dynamic CORS based on environment
+	allowedOrigins := []string{
+		"http://localhost:5173",
+		"https://task-genius.app",
+		"http://task-genius.app",
+	}
+
+	// Check for custom allowed origins from environment
+	if customOrigins := os.Getenv("ALLOWED_ORIGINS"); customOrigins != "" {
+		allowedOrigins = strings.Split(customOrigins, ",")
+	}
+
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowOrigins:     allowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -154,6 +157,7 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 
+	// ✅ Routes remain at /api/todos
 	todoRoutes := r.Group("/api/todos")
 	todoRoutes.Use(middleware.JWTAuth())
 	{
@@ -163,6 +167,7 @@ func main() {
 		todoRoutes.PUT("/:id/toggle", toggleTodo)
 		todoRoutes.DELETE("/:id", deleteTodo)
 	}
+
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "healthy", "service": "todo"})
 	})

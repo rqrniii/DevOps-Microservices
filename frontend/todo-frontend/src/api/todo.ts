@@ -39,7 +39,7 @@ export const toggleTodo = (id: number) => {
 export const addAITasks = async (prompt: string): Promise<void> => {
   const token = getToken();
 
-  const aiBaseUrl = import.meta.env.VITE_AI_API || "http://localhost:8082";
+  const aiBaseUrl = import.meta.env.VITE_AI_API || "/api/ai"; 
   // 1️⃣ Call AI service
   const aiResponse = await axios.post(
     `${aiBaseUrl}/generate`,

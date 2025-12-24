@@ -21,7 +21,11 @@ func main() {
 
 	// CORS config
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowOrigins: []string{
+			"http://localhost:5173",
+			"https://task-genius.app",
+			"http://task-genius.app",
+		},
 		AllowMethods:     []string{"GET", "POST", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},

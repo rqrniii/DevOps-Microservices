@@ -63,7 +63,7 @@ export default function Todos() {
     if (!aiPrompt.trim()) return;
     setLoadingAI(true);
     try {
-      const aiBaseUrl = import.meta.env.VITE_AI_API || "http://localhost:8082";
+      const aiBaseUrl = import.meta.env.VITE_AI_API || "/api/ai";
       // Call AI service to get suggestions
       const token = localStorage.getItem("token") || "";
       const response = await fetch(`${aiBaseUrl}/generate`, {
