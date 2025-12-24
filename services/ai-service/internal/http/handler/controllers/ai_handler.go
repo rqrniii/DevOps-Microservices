@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"log"
 	"net/http"
 	"strings"
 
@@ -28,7 +29,8 @@ func (h *AIHandler) Generate(c *gin.Context) {
 
 	result, err := h.service.GenerateTask(c.Request.Context(), req.Prompt)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("ERROR: AI generation failed: %v", err) // Add this
+		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
