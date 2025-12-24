@@ -28,7 +28,7 @@ func SetupRouter() *gin.Engine {
 	aiService := service.NewAIService(llmClient)
 	aiHandler := handler.NewAIHandler(aiService)
 
-	api := r.Group("/ai")
+	api := r.Group("/api/ai")
 	api.Use(middleware.JWTAuth())
 	{
 		api.POST("/generate", aiHandler.Generate)

@@ -7,7 +7,7 @@ import (
 )
 
 func RegisterTodoRoutes(r *gin.Engine) {
-	todos := r.Group("/todos")
+	todos := r.Group("/api/todos")
 	todos.Use(middleware.AuthMiddleware())
 	{
 		todos.GET("", controllers.GetTodos)
