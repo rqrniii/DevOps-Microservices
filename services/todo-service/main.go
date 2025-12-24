@@ -154,7 +154,7 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 
-	todoRoutes := r.Group("/todos")
+	todoRoutes := r.Group("/api/todos")
 	todoRoutes.Use(middleware.JWTAuth())
 	{
 		todoRoutes.GET("", getTodos)
