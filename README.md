@@ -13,25 +13,38 @@ Key Features
 - Auto-scaling - Multiple replicas with load balancing
 
 🔧 Local Development
+
 Backend Services
+
 # Auth Service
+
 cd services/auth-service
+
 go run main.go
 
 # Todo Service
+
 cd services/todo-service
+
 go run main.go
 
 # AI Service
+
 cd services/ai-service
+
 go run main.go
 
 # Frontend
+
 cd services/frontend
+
 bun install
+
 bun run dev
 
+
 # Frontend
+
 VITE_AUTH_SERVICE_URL=http://localhost:8080
 
 VITE_TODO_SERVICE_URL=http://localhost:8081
@@ -42,6 +55,7 @@ VITE_AI_SERVICE_URL=http://localhost:8082
 📡 API Endpoints
 
 Authentication
+
 POST /api/auth/register
 
 POST /api/auth/login
@@ -49,6 +63,7 @@ POST /api/auth/login
 GET  /api/auth/me
 
 Todo Management
+
 GET    /api/todos
 
 POST   /api/todos
@@ -56,6 +71,7 @@ POST   /api/todos
 PUT    /api/todos/:id/toggle
 
 DELETE /api/todos/:id
+
 
 AI Generation
 
