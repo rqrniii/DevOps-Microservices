@@ -3,7 +3,7 @@
 TaskGenius - AI-Powered Task Management
 
 📋 Overview
-TaskGenius is a full-stack task management application with AI-powered task generation, deployed on a self-managed Kubernetes cluster on AWS. The application demonstrates modern cloud-native architecture with microservices, container orchestration, and CI/CD automation.
+TaskGenius is a full-stack application with AI-powered task generation, deployed on a self-managed Kubernetes cluster on AWS. The application demonstrates modern cloud-native architecture with microservices, container orchestration, and CI/CD automation.
 Key Features
 
 - User Authentication - Secure JWT-based authentication
