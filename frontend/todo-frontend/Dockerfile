@@ -10,7 +10,7 @@ COPY .env.production ./
 RUN bun run build
 
 RUN ls -lah /app/dist/assets/ && \
-    echo "✓ Build complete. Checking for CSS files..." && \
+    echo "✓ Build complete. Checking for CSS files...." && \
     find /app/dist -name "*.css" -type f | head -5
 
 # Stage 2: Production  
