@@ -12,7 +12,7 @@ Key Features
 - Cloud Native - Deployed on Kubernetes with high availability
 - Auto-scaling - Multiple replicas with load balancing
 
-🔧 Local Development
+🔧 Local Development 
 
 Backend Services
 
@@ -52,9 +52,9 @@ VITE_TODO_SERVICE_URL=http://localhost:8081
 VITE_AI_SERVICE_URL=http://localhost:8082
 
 
-📡 API Endpoints
+# 📡 API Endpoints
 
-Authentication
+# Authentication
 
 POST /api/auth/register
 
@@ -62,7 +62,7 @@ POST /api/auth/login
 
 GET  /api/auth/me
 
-Todo Management
+# Todo Management
 
 GET    /api/todos
 
@@ -73,6 +73,6 @@ PUT    /api/todos/:id/toggle
 DELETE /api/todos/:id
 
 
-AI Generation
+# AI Generation
 
 POST /api/ai/generate
