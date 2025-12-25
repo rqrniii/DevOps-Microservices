@@ -1,0 +1,127 @@
+name: Manual Deploy Existing Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to deploy (e.g., v1.0.11, latest, sha-abc123)'
+        required: true
+        default: 'latest'
+      service:
+        description: 'Service to deploy (leave empty for all)'
+        required: false
+        type: choice
+        options:
+          - 'all'
+          - 'auth-service'
+          - 'todo-service'
+          - 'ai-service'
+          - 'frontend'
+        default: 'all'
+
+env:
+  AWS_REGION: me-south-1
+  AWS_ACCOUNT_ID: 405894839882
+  ECR_REGISTRY: 405894839882.dkr.ecr.me-south-1.amazonaws.com
+  NAMESPACE: taskgenius
+
+jobs:
+  deploy:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify images exist in ECR
+        run: |
+          echo "Verifying version ${{ github.event.inputs.version }} exists in ECR..."
+          
+          if [ "${{ github.event.inputs.service }}" == "all" ] || [ "${{ github.event.inputs.service }}" == "auth-service" ]; then
+            aws ecr describe-images --repository-name auth-service --image-ids imageTag=${{ github.event.inputs.version }} --region ${{ env.AWS_REGION }}
+          fi
+          
+          if [ "${{ github.event.inputs.service }}" == "all" ] || [ "${{ github.event.inputs.service }}" == "todo-service" ]; then
+            aws ecr describe-images --repository-name todo-service --image-ids imageTag=${{ github.event.inputs.version }} --region ${{ env.AWS_REGION }}
+          fi
+          
+          if [ "${{ github.event.inputs.service }}" == "all" ] || [ "${{ github.event.inputs.service }}" == "ai-service" ]; then
+            aws ecr describe-images --repository-name ai-service --image-ids imageTag=${{ github.event.inputs.version }} --region ${{ env.AWS_REGION }}
+          fi
+          
+          if [ "${{ github.event.inputs.service }}" == "all" ] || [ "${{ github.event.inputs.service }}" == "frontend" ]; then
+            aws ecr describe-images --repository-name frontend --image-ids imageTag=${{ github.event.inputs.version }} --region ${{ env.AWS_REGION }}
+          fi
+          
+          echo "✅ All images verified!"
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Update ECR Secret
+        run: |
+          kubectl delete secret ecr-registry-secret -n ${{ env.NAMESPACE }} --ignore-not-found=true
+          kubectl create secret docker-registry ecr-registry-secret \
+            --docker-server=${{ env.ECR_REGISTRY }} \
+            --docker-username=AWS \
+            --docker-password=$(aws ecr get-login-password --region ${{ env.AWS_REGION }}) \
+            --namespace=${{ env.NAMESPACE }}
+
+      - name: Deploy Auth Service
+        if: github.event.inputs.service == 'all' || github.event.inputs.service == 'auth-service'
+        run: |
+          kubectl set image deployment/auth-service \
+            auth-service=${{ env.ECR_REGISTRY }}/auth-service:${{ github.event.inputs.version }} \
+            -n ${{ env.NAMESPACE }}
+          kubectl rollout status deployment/auth-service -n ${{ env.NAMESPACE }} --timeout=300s
+
+      - name: Deploy Todo Service
+        if: github.event.inputs.service == 'all' || github.event.inputs.service == 'todo-service'
+        run: |
+          kubectl set image deployment/todo-service \
+            todo-service=${{ env.ECR_REGISTRY }}/todo-service:${{ github.event.inputs.version }} \
+            -n ${{ env.NAMESPACE }}
+          kubectl rollout status deployment/todo-service -n ${{ env.NAMESPACE }} --timeout=300s
+
+      - name: Deploy AI Service
+        if: github.event.inputs.service == 'all' || github.event.inputs.service == 'ai-service'
+        run: |
+          kubectl set image deployment/ai-service \
+            ai-service=${{ env.ECR_REGISTRY }}/ai-service:${{ github.event.inputs.version }} \
+            -n ${{ env.NAMESPACE }}
+          kubectl rollout status deployment/ai-service -n ${{ env.NAMESPACE }} --timeout=300s
+
+      - name: Deploy Frontend
+        if: github.event.inputs.service == 'all' || github.event.inputs.service == 'frontend'
+        run: |
+          kubectl set image deployment/frontend \
+            frontend=${{ env.ECR_REGISTRY }}/frontend:${{ github.event.inputs.version }} \
+            -n ${{ env.NAMESPACE }}
+          kubectl rollout status deployment/frontend -n ${{ env.NAMESPACE }} --timeout=300s
+
+      - name: Deployment Summary
+        run: |
+          echo "🎉 Deployment Complete!"
+          echo "======================"
+          echo "Version: ${{ github.event.inputs.version }}"
+          echo "Service: ${{ github.event.inputs.service }}"
+          echo ""
+          kubectl get pods -n ${{ env.NAMESPACE }}
+          echo ""
+          kubectl get deployment -n ${{ env.NAMESPACE }} -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.template.spec.containers[0].image}{"\n"}{end}'

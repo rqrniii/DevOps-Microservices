@@ -1,0 +1,205 @@
+name: Release Build and Deploy
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on tags like v1.0.12, v2.1.0, etc.
+
+env:
+  AWS_REGION: me-south-1
+  AWS_ACCOUNT_ID: 405894839882
+  ECR_REGISTRY: 405894839882.dkr.ecr.me-south-1.amazonaws.com
+  NAMESPACE: taskgenius
+
+jobs:
+  build-and-push:
+    name: Build and Push Release Images
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: get-version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building release version: $VERSION"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Auth Service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./services/auth-service/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/auth-service:${{ steps.get-version.outputs.version }}
+            ${{ env.ECR_REGISTRY }}/auth-service:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Todo Service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./services/todo-service/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/todo-service:${{ steps.get-version.outputs.version }}
+            ${{ env.ECR_REGISTRY }}/todo-service:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push AI Service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./services/ai-service/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/ai-service:${{ steps.get-version.outputs.version }}
+            ${{ env.ECR_REGISTRY }}/ai-service:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend/todo-frontend
+          file: ./frontend/todo-frontend/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/frontend:${{ steps.get-version.outputs.version }}
+            ${{ env.ECR_REGISTRY }}/frontend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.get-version.outputs.version }}
+          release_name: Release ${{ steps.get-version.outputs.version }}
+          body: |
+            ## TaskGenius Release ${{ steps.get-version.outputs.version }}
+            
+            ### Docker Images
+            - `${{ env.ECR_REGISTRY }}/auth-service:${{ steps.get-version.outputs.version }}`
+            - `${{ env.ECR_REGISTRY }}/todo-service:${{ steps.get-version.outputs.version }}`
+            - `${{ env.ECR_REGISTRY }}/ai-service:${{ steps.get-version.outputs.version }}`
+            - `${{ env.ECR_REGISTRY }}/frontend:${{ steps.get-version.outputs.version }}`
+            
+            ### Deployment
+            Deploy this version using:
+            ```bash
+            # Via GitHub Actions (Manual Deploy workflow)
+            # Or via kubectl:
+            kubectl set image deployment/auth-service auth-service=${{ env.ECR_REGISTRY }}/auth-service:${{ steps.get-version.outputs.version }} -n taskgenius
+            kubectl set image deployment/todo-service todo-service=${{ env.ECR_REGISTRY }}/todo-service:${{ steps.get-version.outputs.version }} -n taskgenius
+            kubectl set image deployment/ai-service ai-service=${{ env.ECR_REGISTRY }}/ai-service:${{ steps.get-version.outputs.version }} -n taskgenius
+            kubectl set image deployment/frontend frontend=${{ env.ECR_REGISTRY }}/frontend:${{ steps.get-version.outputs.version }} -n taskgenius
+            ```
+          draft: false
+          prerelease: false
+
+  deploy:
+    name: Deploy Release to Kubernetes
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: get-version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Update ECR Secret
+        run: |
+          kubectl delete secret ecr-registry-secret -n ${{ env.NAMESPACE }} --ignore-not-found=true
+          kubectl create secret docker-registry ecr-registry-secret \
+            --docker-server=${{ env.ECR_REGISTRY }} \
+            --docker-username=AWS \
+            --docker-password=$(aws ecr get-login-password --region ${{ env.AWS_REGION }}) \
+            --namespace=${{ env.NAMESPACE }}
+
+      - name: Deploy all services
+        run: |
+          # Deploy Auth Service
+          kubectl apply -f k8s/auth-deployment.yaml
+          kubectl set image deployment/auth-service \
+            auth-service=${{ env.ECR_REGISTRY }}/auth-service:${{ steps.get-version.outputs.version }} \
+            -n ${{ env.NAMESPACE }}
+          
+          # Deploy Todo Service
+          kubectl apply -f k8s/todo-deployment.yaml
+          kubectl set image deployment/todo-service \
+            todo-service=${{ env.ECR_REGISTRY }}/todo-service:${{ steps.get-version.outputs.version }} \
+            -n ${{ env.NAMESPACE }}
+          
+          # Deploy AI Service
+          kubectl apply -f k8s/ai-deployment.yaml
+          kubectl set image deployment/ai-service \
+            ai-service=${{ env.ECR_REGISTRY }}/ai-service:${{ steps.get-version.outputs.version }} \
+            -n ${{ env.NAMESPACE }}
+          
+          # Deploy Frontend
+          kubectl apply -f k8s/frontend-deployment.yaml
+          kubectl set image deployment/frontend \
+            frontend=${{ env.ECR_REGISTRY }}/frontend:${{ steps.get-version.outputs.version }} \
+            -n ${{ env.NAMESPACE }}
+          
+          # Wait for all deployments
+          kubectl rollout status deployment/auth-service -n ${{ env.NAMESPACE }} --timeout=300s
+          kubectl rollout status deployment/todo-service -n ${{ env.NAMESPACE }} --timeout=300s
+          kubectl rollout status deployment/ai-service -n ${{ env.NAMESPACE }} --timeout=300s
+          kubectl rollout status deployment/frontend -n ${{ env.NAMESPACE }} --timeout=300s
+
+      - name: Deployment Summary
+        run: |
+          echo "🎉 Release ${{ steps.get-version.outputs.version }} Deployed!"
+          echo "=============================================="
+          echo ""
+          kubectl get pods -n ${{ env.NAMESPACE }}
+          echo ""
+          kubectl get deployment -n ${{ env.NAMESPACE }} -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.template.spec.containers[0].image}{"\n"}{end}'
