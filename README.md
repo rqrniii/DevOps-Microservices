@@ -50,9 +50,13 @@ GET  /api/auth/me
 
 Todo Management
 GET    /api/todos
+
 POST   /api/todos
+
 PUT    /api/todos/:id/toggle
+
 DELETE /api/todos/:id
 
 AI Generation
+
 POST /api/ai/generate
