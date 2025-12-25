@@ -14,7 +14,7 @@ spec:
         app: todo-service
     spec:
       imagePullSecrets:
-      - name: ecr-secret
+      - name: ecr-registry-secret
       containers:
       - name: todo-service
         image: 405894839882.dkr.ecr.me-south-1.amazonaws.com/todo-service:latest
