@@ -33,14 +33,19 @@ bun run dev
 
 # Frontend
 VITE_AUTH_SERVICE_URL=http://localhost:8080
+
 VITE_TODO_SERVICE_URL=http://localhost:8081
+
 VITE_AI_SERVICE_URL=http://localhost:8082
+
 
 📡 API Endpoints
 
 Authentication
 POST /api/auth/register
+
 POST /api/auth/login
+
 GET  /api/auth/me
 
 Todo Management
