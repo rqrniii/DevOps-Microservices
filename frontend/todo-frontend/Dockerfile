@@ -2,13 +2,11 @@ FROM oven/bun:latest AS builder
 WORKDIR /app
 
 COPY package.json bun.lockb* ./
-RUN bun install --no-save
+RUN bun install 
 
 COPY . .
 COPY .env.production ./
 
-# Build the app
-ENV NODE_ENV=production
 RUN bun run build
 
 RUN ls -lah /app/dist/assets/ && \
@@ -21,6 +19,7 @@ FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
+ENV NODE_ENV=production
 EXPOSE 80
 
 # Add healthcheck
