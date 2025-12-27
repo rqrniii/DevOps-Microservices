@@ -20,36 +20,3 @@ data:
   AI_SERVICE_URL: "http://ai-service:8082"
 
   ALLOWED_ORIGINS: "https://task-genius.app,http://task-genius.app,http://localhost:5173"
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: postgres-init-script
-  namespace: taskgenius
-data:
-  init.sql: |
-    -- Create users table
-    CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        password VARCHAR(255) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-
-    -- Create todos table
-    CREATE TABLE IF NOT EXISTS todos (
-        id SERIAL PRIMARY KEY,
-        task TEXT NOT NULL,
-        completed BOOLEAN DEFAULT FALSE,
-        user_email VARCHAR(255) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE
-    );
-
-    -- Create indexes
-    CREATE INDEX IF NOT EXISTS idx_todos_user_email ON todos(user_email);
-    CREATE INDEX IF NOT EXISTS idx_todos_completed ON todos(completed);
-    
-    -- Grant permissions
-    GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO postgres;
-    GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO postgres;

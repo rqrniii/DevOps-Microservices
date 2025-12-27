@@ -2,24 +2,29 @@ package main
 
 import (
 	"log"
-	"os"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/joho/godotenv"
+
+	"github.com/rqrniii/DevOps-Microservices/services/ai-service/internal/config"
 	httpserver "github.com/rqrniii/DevOps-Microservices/services/ai-service/internal/http"
+	commonjwt "github.com/rqrniii/DevOps-Microservices/services/common/jwt"
 )
 
 func main() {
-	// Load environment variables from .env
-	err := godotenv.Load(".env")
-	if err != nil {
-		log.Println("Warning: .env file not found, relying on system environment variables")
+
+	if err := godotenv.Load(".env"); err != nil {
+		log.Println("Warning: .env file not found, using system env")
 	}
+
+	cfg := config.Load()
+
+	commonjwt.LoadJWT()
 
 	r := httpserver.SetupRouter()
 
-	// CORS config
+	// CORS
 	r.Use(cors.New(cors.Config{
 		AllowOrigins: []string{
 			"http://localhost:5173",
@@ -28,15 +33,10 @@ func main() {
 		},
 		AllowMethods:     []string{"GET", "POST", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8082"
-	}
-
-	r.Run(":" + port)
+	// Start server
+	r.Run(":" + cfg.Port)
 }

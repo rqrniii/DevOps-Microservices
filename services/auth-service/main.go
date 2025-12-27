@@ -9,6 +9,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/rqrniii/DevOps-Microservices/services/auth-service/routes"
+	"github.com/rqrniii/DevOps-Microservices/services/common/config"
+	"github.com/rqrniii/DevOps-Microservices/services/common/database"
+	"github.com/rqrniii/DevOps-Microservices/services/common/jwt"
 )
 
 func main() {
@@ -16,6 +19,10 @@ func main() {
 	if err != nil {
 		log.Println("No .env file found, using environment variables")
 	}
+	config.LoadConfig()
+	jwt.LoadJWT()
+
+	database.Connect()
 
 	router := gin.Default()
 

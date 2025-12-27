@@ -168,9 +168,9 @@ jobs:
         run: |
           kubectl apply -f k8s/namespace.yaml
 
-      - name: Deploy ConfigMaps
-        run: |
-          kubectl apply -f k8s/configmap.yaml
+      # - name: Deploy ConfigMaps
+      #   run: |
+      #     kubectl apply -f k8s/configmap.yaml
 
       - name: Deploy Auth Service
         run: |

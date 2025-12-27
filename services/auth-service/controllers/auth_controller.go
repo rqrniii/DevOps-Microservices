@@ -5,12 +5,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rqrniii/DevOps-Microservices/services/auth-service/models"
+	"github.com/rqrniii/DevOps-Microservices/services/common/database"
 	myjwt "github.com/rqrniii/DevOps-Microservices/services/common/jwt"
 	"golang.org/x/crypto/bcrypt"
 )
 
 // In-memory user store
-var users = map[string]models.User{}
+//var users = map[string]models.User{}
 
 // Register endpoint
 func Register(c *gin.Context) {
@@ -20,17 +21,25 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	// Hash password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword(
+		[]byte(input.Password),
+		bcrypt.DefaultCost,
+	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to hash password"})
 		return
 	}
 
-	input.Password = string(hashedPassword)
+	_, err = database.DB.Exec(
+		"INSERT INTO users (email, password) VALUES ($1, $2)",
+		input.Email,
+		string(hashedPassword),
+	)
 
-	// Save to in-memory map (replace with DB later)
-	users[input.Email] = input
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "user already exists"})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "user registered"})
 }
@@ -43,20 +52,26 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	user, exists := users[input.Email]
-	if !exists {
+	var hashedPassword string
+	err := database.DB.QueryRow(
+		"SELECT password FROM users WHERE email=$1",
+		input.Email,
+	).Scan(&hashedPassword)
+
+	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 		return
 	}
 
-	// Compare password
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
+	if err := bcrypt.CompareHashAndPassword(
+		[]byte(hashedPassword),
+		[]byte(input.Password),
+	); err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 		return
 	}
 
-	// Generate JWT using shared common/jwt
-	token, err := myjwt.GenerateToken(user.Email)
+	token, err := myjwt.GenerateToken(input.Email)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
 		return

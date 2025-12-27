@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rqrniii/DevOps-Microservices/services/common/database"
 	"github.com/rqrniii/DevOps-Microservices/services/todo-service/models"
 )
 
@@ -15,14 +16,20 @@ func GetTodos(c *gin.Context) {
 
 func AddTodo(c *gin.Context) {
 	var todo models.Todo
-
 	if err := c.ShouldBindJSON(&todo); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	todo.ID = len(todos) + 1
-	todos = append(todos, todo)
+	email := c.GetString("email")
+	query := `INSERT INTO todos (task, completed, email) VALUES ($1, $2, $3) RETURNING id, task, completed, email, created_at`
+	row := database.DB.QueryRow(query, todo.Task, false, email)
 
-	c.JSON(http.StatusCreated, todo)
+	var newTodo models.Todo
+	if err := row.Scan(&newTodo.ID, &newTodo.Task, &newTodo.Completed, &newTodo.Email, &newTodo.CreatedAt); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, newTodo)
 }

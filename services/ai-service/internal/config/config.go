@@ -18,9 +18,9 @@ func Load() *Config {
 	}
 }
 
-func getEnv(k, d string) string {
-	if v := os.Getenv(k); v != "" {
+func getEnv(key, def string) string {
+	if v := os.Getenv(key); v != "" {
 		return v
 	}
-	return d
+	return def
 }

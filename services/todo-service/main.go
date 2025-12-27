@@ -9,29 +9,35 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/rqrniii/DevOps-Microservices/services/common/config"
+	"github.com/rqrniii/DevOps-Microservices/services/common/database"
+	"github.com/rqrniii/DevOps-Microservices/services/common/jwt"
 	"github.com/rqrniii/DevOps-Microservices/services/todo-service/middleware"
+	"github.com/rqrniii/DevOps-Microservices/services/todo-service/models"
 )
 
-type Todo struct {
-	ID        int    `json:"id"`
-	Task      string `json:"task"`
-	Email     string `json:"email"`
-	Completed bool   `json:"completed"`
-}
-
-var todos = []Todo{}
-
 func getTodos(c *gin.Context) {
-	userEmail := c.GetString("email")
-	userTodos := []Todo{}
+	email := c.GetString("email")
+	rows, err := database.DB.Query("SELECT id, task, completed, email, created_at FROM todos WHERE email=$1", email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
 
-	for _, t := range todos {
-		if t.Email == userEmail {
-			userTodos = append(userTodos, t)
+	todos := []models.Todo{}
+	for rows.Next() {
+		var t models.Todo
+		if err := rows.Scan(&t.ID, &t.Task, &t.Completed, &t.Email, &t.CreatedAt); err != nil {
+			fmt.Println("DB scan error:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
 		}
+
+		todos = append(todos, t)
 	}
 
-	c.JSON(http.StatusOK, userTodos)
+	c.JSON(http.StatusOK, todos)
 }
 
 func createTodo(c *gin.Context) {
@@ -44,22 +50,24 @@ func createTodo(c *gin.Context) {
 		return
 	}
 
-	userEmail := c.GetString("email")
+	email := c.GetString("email")
 
-	todo := Todo{
-		ID:        len(todos) + 1,
-		Task:      input.Task,
-		Email:     userEmail,
-		Completed: false,
+	query := `INSERT INTO todos (task, completed, email) VALUES ($1, $2, $3) 
+			  RETURNING id, task, completed, email, created_at`
+	row := database.DB.QueryRow(query, input.Task, false, email)
+
+	var todo models.Todo
+	if err := row.Scan(&todo.ID, &todo.Task, &todo.Completed, &todo.Email, &todo.CreatedAt); err != nil {
+		fmt.Println("INSERT scan error:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 
-	todos = append(todos, todo)
 	c.JSON(http.StatusCreated, todo)
 }
 
 func toggleTodo(c *gin.Context) {
 	idParam := c.Param("id")
-
 	id := 0
 	_, err := fmt.Sscanf(idParam, "%d", &id)
 	if err != nil {
@@ -67,22 +75,22 @@ func toggleTodo(c *gin.Context) {
 		return
 	}
 
-	userEmail := c.GetString("email")
+	email := c.GetString("email")
 
-	for i, t := range todos {
-		if t.ID == id && t.Email == userEmail {
-			todos[i].Completed = !todos[i].Completed
-			c.JSON(http.StatusOK, todos[i])
-			return
-		}
+	var completed bool
+	query := `UPDATE todos SET completed = NOT completed 
+			  WHERE id=$1 AND email=$2 RETURNING completed`
+	err = database.DB.QueryRow(query, id, email).Scan(&completed)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "todo not found"})
+		return
 	}
 
-	c.JSON(http.StatusNotFound, gin.H{"error": "todo not found"})
+	c.JSON(http.StatusOK, gin.H{"id": id, "completed": completed})
 }
 
 func deleteTodo(c *gin.Context) {
 	idParam := c.Param("id")
-
 	id := 0
 	_, err := fmt.Sscanf(idParam, "%d", &id)
 	if err != nil {
@@ -90,17 +98,20 @@ func deleteTodo(c *gin.Context) {
 		return
 	}
 
-	userEmail := c.GetString("email")
-
-	for i, t := range todos {
-		if t.ID == id && t.Email == userEmail {
-			todos = append(todos[:i], todos[i+1:]...)
-			c.JSON(http.StatusOK, gin.H{"message": "todo deleted"})
-			return
-		}
+	email := c.GetString("email")
+	res, err := database.DB.Exec("DELETE FROM todos WHERE id=$1 AND email=$2", id, email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 
-	c.JSON(http.StatusNotFound, gin.H{"error": "todo not found"})
+	count, _ := res.RowsAffected()
+	if count == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "todo not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "todo deleted"})
 }
 
 func createAITasks(c *gin.Context) {
@@ -114,6 +125,7 @@ func createAITasks(c *gin.Context) {
 	}
 
 	userEmail := c.GetString("email")
+	count := 0
 
 	for _, task := range req.Tasks {
 		task = strings.TrimSpace(task)
@@ -121,19 +133,26 @@ func createAITasks(c *gin.Context) {
 			continue
 		}
 
-		todo := Todo{
-			ID:        len(todos) + 1,
-			Task:      task,
-			Email:     userEmail,
-			Completed: false,
+		query := `INSERT INTO todos (task, completed, email) 
+				  VALUES ($1, $2, $3)`
+		_, err := database.DB.Exec(query, task, false, userEmail)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
 		}
-		todos = append(todos, todo)
+
+		count++
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "AI tasks added", "count": len(req.Tasks)})
+	c.JSON(http.StatusCreated, gin.H{"message": "AI tasks added", "count": count})
 }
 
 func main() {
+	config.LoadConfig()
+	jwt.LoadJWT()
+
+	database.Connect()
+
 	r := gin.Default()
 
 	// ✅ FIXED: Dynamic CORS based on environment

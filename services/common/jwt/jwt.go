@@ -8,7 +8,15 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var jwtKey = []byte(os.Getenv("JWT_SECRET"))
+var jwtKey []byte
+
+func LoadJWT() {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		panic("JWT_SECRET not set")
+	}
+	jwtKey = []byte(secret)
+}
 
 func GenerateToken(email string) (string, error) {
 	claims := jwt.MapClaims{
